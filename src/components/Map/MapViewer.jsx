@@ -11,6 +11,14 @@ function MapViewer() {
   const [routeCoordinates, setRouteCoordinates] = useState([]);
   const navigate = useNavigate();
 
+  // Иконки для меток
+  const customIcon = L.icon({
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [0, -41],
+  });
+
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371e3;
     const φ1 = (lat1 * Math.PI) / 180;
@@ -54,6 +62,9 @@ function MapViewer() {
   };
 
   useEffect(() => {
+    const savedLogTable = localStorage.getItem('logTable');
+    if (savedLogTable) setLogTable(JSON.parse(savedLogTable));
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -88,7 +99,12 @@ function MapViewer() {
     }
   }, [location]);
 
-  const addManualMarker = () => {
+  useEffect(() => {
+    localStorage.setItem('logTable', JSON.stringify(logTable));
+  }, [logTable]);
+
+  const addManualMarker = (e) => {
+    e.preventDefault();
     if (location) {
       const entry = { ...location, timestamp: Date.now(), isManual: true };
       setLogTable(prev => {
@@ -99,12 +115,14 @@ function MapViewer() {
     }
   };
 
-  const clearLogTable = () => {
+  const clearLogTable = (e) => {
+    e.preventDefault();
     setLogTable([]);
     setRouteCoordinates([]);
   };
 
-  const viewCoordinates = () => {
+  const viewCoordinates = (e) => {
+    e.preventDefault();
     navigate('/coordinates', { state: { logTable } });
   };
 
@@ -113,11 +131,11 @@ function MapViewer() {
       {location ? (
         <MapContainer center={[location.latitude, location.longitude]} zoom={13} style={{ height: '100%', width: '100%' }}>
           <TileLayer attribution='© OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <Marker position={[location.latitude, location.longitude]}>
+          <Marker position={[location.latitude, location.longitude]} icon={customIcon}>
             <Popup>Ты здесь</Popup>
           </Marker>
           {logTable.map((p, i) => (
-            <Marker key={i} position={[p.latitude, p.longitude]}>
+            <Marker key={i} position={[p.latitude, p.longitude]} icon={customIcon}>
               <Popup>{p.isManual ? `Моя метка ${i + 1}` : `Точка ${i + 1}`}<br />{new Date(p.timestamp).toLocaleTimeString()}</Popup>
             </Marker>
           ))}

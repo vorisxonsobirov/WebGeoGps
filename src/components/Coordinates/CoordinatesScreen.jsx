@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 function CoordinatesScreen() {
   const { state } = useLocation();
-  const { logTable } = state || { logTable: [] };
+  const { logTable = [] } = state || {};
   const navigate = useNavigate();
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -28,7 +28,7 @@ function CoordinatesScreen() {
   return (
     <div className="coordinates-container">
       <div className="button-container">
-        <button className="button" onClick={() => navigate('/')}>Назад</button>
+        <button className="button" onClick={(e) => { e.preventDefault(); navigate('/'); }}>Назад</button>
       </div>
       <h1 className="header">Лог точек:</h1>
       {logTable.length === 0 ? (
