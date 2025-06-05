@@ -9,11 +9,20 @@ function MapViewer() {
   const [location, setLocation] = useState(null);
   const [logTable, setLogTable] = useState([]);
   const [routeCoordinates, setRouteCoordinates] = useState([]);
-  const [error, setError] = useState(null); // Добавляем состояние для ошибок
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const customIcon = L.icon({
+  // Иконка для текущей позиции и автоматических меток (синяя)
+  const defaultIcon = L.icon({
     iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [0, -41],
+  });
+
+  // Иконка для ручных меток (зелёная)
+  const manualIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [0, -41],
@@ -80,7 +89,7 @@ function MapViewer() {
           console.error('Ошибка геолокации:', err);
           setError(`Ошибка геолокации: ${err.message}`);
         },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 } // Увеличиваем timeout до 15 секунд
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
       );
 
       const watcher = navigator.geolocation.watchPosition(
@@ -143,11 +152,11 @@ function MapViewer() {
       {location ? (
         <MapContainer center={[location.latitude, location.longitude]} zoom={13} style={{ height: '100%', width: '100%' }}>
           <TileLayer attribution='© OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <Marker position={[location.latitude, location.longitude]} icon={customIcon}>
+          <Marker position={[location.latitude, location.longitude]} icon={defaultIcon}>
             <Popup>Ты здесь</Popup>
           </Marker>
           {logTable.map((p, i) => (
-            <Marker key={i} position={[p.latitude, p.longitude]} icon={customIcon}>
+            <Marker key={i} position={[p.latitude, p.longitude]} icon={p.isManual ? manualIcon : defaultIcon}>
               <Popup>{p.isManual ? `Моя метка ${i + 1}` : `Точка ${i + 1}`}<br />{new Date(p.timestamp).toLocaleTimeString()}</Popup>
             </Marker>
           ))}
