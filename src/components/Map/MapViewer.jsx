@@ -9,9 +9,9 @@ function MapViewer() {
   const [location, setLocation] = useState(null);
   const [logTable, setLogTable] = useState([]);
   const [routeCoordinates, setRouteCoordinates] = useState([]);
+  const [error, setError] = useState(null); // Добавляем состояние для ошибок
   const navigate = useNavigate();
 
-  // Иконки для меток
   const customIcon = L.icon({
     iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
     iconSize: [25, 41],
@@ -69,18 +69,24 @@ function MapViewer() {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
+          console.log('Успешно определено местоположение:', { latitude, longitude });
           setLocation({ latitude, longitude });
           const entry = { latitude, longitude, timestamp: Date.now(), isManual: false };
           setLogTable([entry]);
           fetchRoute([entry]);
+          setError(null);
         },
-        (err) => console.error('Ошибка геолокации:', err),
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+        (err) => {
+          console.error('Ошибка геолокации:', err);
+          setError(`Ошибка геолокации: ${err.message}`);
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 } // Увеличиваем timeout до 15 секунд
       );
 
       const watcher = navigator.geolocation.watchPosition(
         (newLocation) => {
           const { latitude, longitude } = newLocation.coords;
+          console.log('Обновлено местоположение:', { latitude, longitude });
           const distance = location ? calculateDistance(location.latitude, location.longitude, latitude, longitude) : 0;
           if (distance >= 10) {
             const entry = { latitude, longitude, timestamp: Date.now(), isManual: false };
@@ -92,10 +98,15 @@ function MapViewer() {
             setLocation({ latitude, longitude });
           }
         },
-        (err) => console.error('Ошибка отслеживания:', err),
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+        (err) => {
+          console.error('Ошибка отслеживания:', err);
+          setError(`Ошибка отслеживания: ${err.message}`);
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
       );
       return () => navigator.geolocation.clearWatch(watcher);
+    } else {
+      setError('Геолокация не поддерживается вашим браузером');
     }
   }, [location]);
 
@@ -128,6 +139,7 @@ function MapViewer() {
 
   return (
     <div className="map-container">
+      {error && <p style={{ color: 'red', position: 'absolute', top: 10, zIndex: 1000 }}>{error}</p>}
       {location ? (
         <MapContainer center={[location.latitude, location.longitude]} zoom={13} style={{ height: '100%', width: '100%' }}>
           <TileLayer attribution='© OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
