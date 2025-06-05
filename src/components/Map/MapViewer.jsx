@@ -10,9 +10,9 @@ function MapViewer() {
   const [logTable, setLogTable] = useState([]);
   const [routeCoordinates, setRouteCoordinates] = useState([]);
   const [error, setError] = useState(null);
+  const [totalDistance, setTotalDistance] = useState(0);
   const navigate = useNavigate();
 
-  // Иконка для текущей позиции и автоматических меток (синяя)
   const defaultIcon = L.icon({
     iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
     iconSize: [25, 41],
@@ -20,7 +20,6 @@ function MapViewer() {
     popupAnchor: [0, -41],
   });
 
-  // Иконка для ручных меток (зелёная)
   const manualIcon = L.icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
     iconSize: [25, 41],
@@ -29,14 +28,14 @@ function MapViewer() {
   });
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371e3;
+    const R = 6371e3; // Радиус Земли в метрах
     const φ1 = (lat1 * Math.PI) / 180;
     const φ2 = (lat2 * Math.PI) / 180;
     const Δφ = ((lat2 - lat1) * Math.PI) / 180;
     const Δλ = ((lon2 - lon1) * Math.PI) / 180;
     const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    return R * c; // Возвращаем расстояние в метрах
   };
 
   const fetchRoute = async (points) => {
@@ -45,11 +44,12 @@ function MapViewer() {
     );
     if (filteredPoints.length < 2) {
       setRouteCoordinates([]);
+      setTotalDistance(0);
       return;
     }
     try {
       const coordinates = filteredPoints.map(p => `${p.longitude},${p.latitude}`).join(';');
-      const url = `http://router.project-osrm.org/route/v1/foot/${coordinates}?overview=full&geometries=geojson`;
+      const url = `http://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`; // Используем driving
       const response = await axios.get(url);
       const data = response.data;
       if (data.code === 'Ok') {
@@ -60,13 +60,21 @@ function MapViewer() {
           isManual: false,
         }));
         setRouteCoordinates(route);
+        // Расчёт общего расстояния на основе маршрута
+        const distances = [];
+        for (let i = 1; i < route.length; i++) {
+          distances.push(calculateDistance(route[i - 1].latitude, route[i - 1].longitude, route[i].latitude, route[i].longitude));
+        }
+        setTotalDistance(distances.reduce((sum, dist) => sum + dist, 0));
       } else {
         console.error('Ошибка OSRM:', data.code);
         setRouteCoordinates(filteredPoints);
+        setTotalDistance(0);
       }
     } catch (e) {
       console.error('Ошибка запроса маршрута:', e);
       setRouteCoordinates(filteredPoints);
+      setTotalDistance(0);
     }
   };
 
@@ -78,7 +86,7 @@ function MapViewer() {
       const options = {
         enableHighAccuracy: true,
         maximumAge: 0,
-        timeout: 30000, // Увеличиваем таймаут до 30 секунд
+        timeout: 30000,
       };
 
       navigator.geolocation.getCurrentPosition(
@@ -94,7 +102,6 @@ function MapViewer() {
         (err) => {
           console.error('Ошибка геолокации:', err);
           setError(`Ошибка геолокации: ${err.message}. Убедитесь, что разрешение дано и GPS включён.`);
-          // Попробуем снова с меньшей точностью, если ошибка
           navigator.geolocation.getCurrentPosition(
             (pos) => {
               const { latitude, longitude } = pos.coords;
@@ -158,11 +165,12 @@ function MapViewer() {
     e.preventDefault();
     setLogTable([]);
     setRouteCoordinates([]);
+    setTotalDistance(0);
   };
 
   const viewCoordinates = (e) => {
     e.preventDefault();
-    navigate('/coordinates', { state: { logTable } });
+    navigate('/coordinates', { state: { logTable, totalDistance } });
   };
 
   return (
