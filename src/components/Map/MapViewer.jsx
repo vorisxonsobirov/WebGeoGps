@@ -75,6 +75,12 @@ function MapViewer() {
     if (savedLogTable) setLogTable(JSON.parse(savedLogTable));
 
     if (navigator.geolocation) {
+      const options = {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 30000, // Увеличиваем таймаут до 30 секунд
+      };
+
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
@@ -87,9 +93,22 @@ function MapViewer() {
         },
         (err) => {
           console.error('Ошибка геолокации:', err);
-          setError(`Ошибка геолокации: ${err.message}`);
+          setError(`Ошибка геолокации: ${err.message}. Убедитесь, что разрешение дано и GPS включён.`);
+          // Попробуем снова с меньшей точностью, если ошибка
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const { latitude, longitude } = pos.coords;
+              console.log('Успешно определено с меньшей точностью:', { latitude, longitude });
+              setLocation({ latitude, longitude });
+              const entry = { latitude, longitude, timestamp: Date.now(), isManual: false };
+              setLogTable([entry]);
+              fetchRoute([entry]);
+            },
+            (err2) => console.error('Вторая попытка провалилась:', err2),
+            { enableHighAccuracy: false, timeout: 30000 }
+          );
         },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+        options
       );
 
       const watcher = navigator.geolocation.watchPosition(
@@ -111,7 +130,7 @@ function MapViewer() {
           console.error('Ошибка отслеживания:', err);
           setError(`Ошибка отслеживания: ${err.message}`);
         },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+        options
       );
       return () => navigator.geolocation.clearWatch(watcher);
     } else {
